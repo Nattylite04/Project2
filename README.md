@@ -11,7 +11,7 @@ POSIX threads and semaphores.
 - Manager capacity: 1 teller
 
 ## Compilation
-gcc -Wall -Wextra -pthread project2.c -o project2
+gcc -Wall -Wextra -pthread simulation.c -o simulation
 
 ## Execution
 ./project2
