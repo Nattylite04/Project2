@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -16,6 +15,12 @@ typedef struct {
     sem_t request_received;
     sem_t customer_left;
 } Teller;
+
+typedef struct {
+    int id;
+    int transaction;
+    Teller *assigned_teller;
+} Customer;
 
 sem_t bank_ready;
 
@@ -48,9 +53,9 @@ void *teller(void *arg) {
 }
 
 void *customer(void *arg) {
-    Teller *t = (Teller *)arg;
-
-    int id = t->id;
+    Customer *c = (Customer *)arg;
+    int id = c->id;
+    Teller *t = c->assigned_teller;
 
     t->customer_id = id;
 
@@ -84,7 +89,7 @@ int main(void) {
     pthread_t customer_threads[NUM_TELLERS];
 
     Teller tellers[NUM_TELLERS];
-
+    Customer customers[NUM_TELLERS];
     sem_init(&bank_ready, 0, 0);
 
     for (int i = 0; i < NUM_TELLERS; i++) {
@@ -107,10 +112,13 @@ int main(void) {
     }
 
     printf("Bank: all tellers are ready\n");
-
+    
     for (int i = 0; i < NUM_TELLERS; i++) {
-        pthread_create(&customer_threads[i], NULL,
-                       customer, &tellers[i]);
+        customers[i].id = i;
+        customers[i].transaction = -1;
+        customers[i].assigned_teller = &tellers[i];
+        
+        pthread_create(&customer_threads[i], NULL, customer, &customers[i]);
     }
 
     for (int i = 0; i < NUM_TELLERS; i++) {
