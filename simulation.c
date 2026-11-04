@@ -1,65 +1,134 @@
+
 #include <stdio.h>
 #include <pthread.h>
 #include <semaphore.h>
 
-// Semaphores for communication
-sem_t teller_ready;
-sem_t customer_arrived;
-sem_t transaction_done;
+#define NUM_TELLERS 3
 
-// Teller thread
+typedef struct {
+    int id;
+    int customer_id;
+    int transaction;
+
+    sem_t customer_arrived;
+    sem_t ask_transaction;
+    sem_t transaction_given;
+    sem_t request_received;
+    sem_t customer_left;
+} Teller;
+
+sem_t bank_ready;
+
 void *teller(void *arg) {
-    printf("Teller 0: ready to serve\n");
-    sem_post(&teller_ready);
+    Teller *t = (Teller *)arg;
 
-    // Wait for customer introduction
-    sem_wait(&customer_arrived);
+    printf("Teller %d []: ready to serve\n", t->id);
+    sem_post(&bank_ready);
 
-    printf("Teller 0 [Customer 0]: receives introduction\n");
+    sem_wait(&t->customer_arrived);
 
-    // Let customer know interaction is finished
-    sem_post(&transaction_done);
+    printf("Teller %d [Customer %d]: asks for transaction\n",
+           t->id, t->customer_id);
+
+    sem_post(&t->ask_transaction);
+
+    sem_wait(&t->transaction_given);
+
+    printf("Teller %d [Customer %d]: receives %s request\n",
+           t->id, t->customer_id,
+           t->transaction == 0 ? "deposit" : "withdrawal");
+
+    sem_post(&t->request_received);
+
+    sem_wait(&t->customer_left);
+
+    printf("Teller %d: customer left teller\n", t->id);
 
     return NULL;
 }
 
-// Customer thread
 void *customer(void *arg) {
-    // Wait until the teller is ready
-    sem_wait(&teller_ready);
+    Teller *t = (Teller *)arg;
 
-    printf("Customer 0 [Teller 0]: approaches teller\n");
-    printf("Customer 0 [Teller 0]: introduces itself\n");
+    int id = t->id;
 
-    sem_post(&customer_arrived);
+    t->customer_id = id;
 
-    // Wait for teller to finish
-    sem_wait(&transaction_done);
+    printf("Customer %d [Teller %d]: introduces itself\n",
+           id, t->id);
 
-    printf("Customer 0 [Teller 0]: leaves teller\n");
+    sem_post(&t->customer_arrived);
+
+    sem_wait(&t->ask_transaction);
+
+    t->transaction = id % 2;
+
+    printf("Customer %d [Teller %d]: requests %s\n",
+           id, t->id,
+           t->transaction == 0 ? "deposit" : "withdrawal");
+
+    sem_post(&t->transaction_given);
+
+    sem_wait(&t->request_received);
+
+    printf("Customer %d [Teller %d]: ends test interaction\n",
+           id, t->id);
+
+    sem_post(&t->customer_left);
 
     return NULL;
 }
 
-int main() {
-    pthread_t teller_thread;
-    pthread_t customer_thread;
+int main(void) {
+    pthread_t teller_threads[NUM_TELLERS];
+    pthread_t customer_threads[NUM_TELLERS];
 
-    sem_init(&teller_ready, 0, 0);
-    sem_init(&customer_arrived, 0, 0);
-    sem_init(&transaction_done, 0, 0);
+    Teller tellers[NUM_TELLERS];
 
-    pthread_create(&teller_thread, NULL, teller, NULL);
-    pthread_create(&customer_thread, NULL, customer, NULL);
+    sem_init(&bank_ready, 0, 0);
 
-    pthread_join(teller_thread, NULL);
-    pthread_join(customer_thread, NULL);
+    for (int i = 0; i < NUM_TELLERS; i++) {
+        tellers[i].id = i;
+        tellers[i].customer_id = -1;
+        tellers[i].transaction = -1;
 
-    sem_destroy(&teller_ready);
-    sem_destroy(&customer_arrived);
-    sem_destroy(&transaction_done);
+        sem_init(&tellers[i].customer_arrived, 0, 0);
+        sem_init(&tellers[i].ask_transaction, 0, 0);
+        sem_init(&tellers[i].transaction_given, 0, 0);
+        sem_init(&tellers[i].request_received, 0, 0);
+        sem_init(&tellers[i].customer_left, 0, 0);
 
-    printf("Bank simulation finished\n");
+        pthread_create(&teller_threads[i], NULL,
+                       teller, &tellers[i]);
+    }
+
+    for (int i = 0; i < NUM_TELLERS; i++) {
+        sem_wait(&bank_ready);
+    }
+
+    printf("Bank: all tellers are ready\n");
+
+    for (int i = 0; i < NUM_TELLERS; i++) {
+        pthread_create(&customer_threads[i], NULL,
+                       customer, &tellers[i]);
+    }
+
+    for (int i = 0; i < NUM_TELLERS; i++) {
+        pthread_join(customer_threads[i], NULL);
+        pthread_join(teller_threads[i], NULL);
+    }
+
+    for (int i = 0; i < NUM_TELLERS; i++) {
+        sem_destroy(&tellers[i].customer_arrived);
+        sem_destroy(&tellers[i].ask_transaction);
+        sem_destroy(&tellers[i].transaction_given);
+        sem_destroy(&tellers[i].request_received);
+        sem_destroy(&tellers[i].customer_left);
+    }
+
+    sem_destroy(&bank_ready);
+
+    printf("Bank: test completed\n");
 
     return 0;
 }
