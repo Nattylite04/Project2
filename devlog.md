@@ -18,4 +18,8 @@ Plans for this session: Create customer structure to store each customer's uniqu
 Modify existing customer thread to use this struct instead of obtaining its ID from teller. 
 Implement random selection between deposit and withdrawal transaction. Add required random arrival delay. Begin designing how customers will enter bank and wait for available teller.
 
-## End of session 2 - November 3rd - 2026
+## End of session 2 - November 3rd - 2026 - 5:58PM
+
+Thoughts so far: I implemented the Customer structure to store independent customer IDs, transaction information, and a reference to an assigned teller. I modified the customer thread dot use its own Customer struct instead of receiving ID from Teller struct. Output shows correct teller announcements, customer to teller, and transaction request in correct orders. 
+
+Plans for next session: Implement random transaction selection while keeping existing teller/customer synchronization intact.
