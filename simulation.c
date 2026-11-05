@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <stdarg.h>
 
 #define NUM_TELLERS 3
 
@@ -24,30 +25,49 @@ typedef struct {
 
 sem_t bank_ready;
 
+pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
+
+void log_action(const char *type, int id, const char *other_type, int other_id, const char *message) {
+
+    pthread_mutex_lock(&print_lock);
+
+    if (other_type != NULL) {
+        printf("%s %d [%s %d]: %s\n", type, id, other_type, other_id, message);
+    } else {
+        printf("%s %d: %s\n", type, id, message);
+    }
+
+    fflush(stdout);
+
+    pthread_mutex_unlock(&print_lock);
+}
+
+
 void *teller(void *arg) {
     Teller *t = (Teller *)arg;
 
-    printf("Teller %d []: ready to serve\n", t->id);
+    log_action("Teller []:", t->id, NULL, 0, "ready to serve");
     sem_post(&bank_ready);
 
     sem_wait(&t->customer_arrived);
 
-    printf("Teller %d [Customer %d]: asks for transaction\n",
-           t->id, t->customer_id);
+    log_action("Teller", t->id, "Customer", t->customer_id, "asks for transaction");
 
     sem_post(&t->ask_transaction);
 
     sem_wait(&t->transaction_given);
 
-    printf("Teller %d [Customer %d]: receives %s request\n",
-           t->id, t->customer_id,
-           t->transaction == 0 ? "deposit" : "withdrawal");
+    if (t->transaction == 0) {
+        log_action("Teller", t->id, "Customer", t->customer_id, "receives deposit request");
+    } else {
+        log_action("Teller", t->id, "Customer", t->customer_id, "receives withdrawal request");
+    }
 
     sem_post(&t->request_received);
 
     sem_wait(&t->customer_left);
 
-    printf("Teller %d: customer left teller\n", t->id);
+    log_action("Teller", t->id, "Customer", t->customer_id, "customer left teller");
 
     return NULL;
 }
@@ -59,8 +79,7 @@ void *customer(void *arg) {
 
     t->customer_id = id;
 
-    printf("Customer %d [Teller %d]: introduces itself\n",
-           id, t->id);
+    log_action("Customer", id, "Teller", t->id, "introduces itself");
 
     sem_post(&t->customer_arrived);
 
@@ -68,16 +87,17 @@ void *customer(void *arg) {
 
     t->transaction = id % 2;
 
-    printf("Customer %d [Teller %d]: requests %s\n",
-           id, t->id,
-           t->transaction == 0 ? "deposit" : "withdrawal");
+    if (t->transaction == 0) {
+        log_action("Customer", id, "Teller", t->id, "requests deposit");
+    } else {
+        log_action("Customer", id, "Teller", t->id, "requests withdrawal");
+    }
 
     sem_post(&t->transaction_given);
 
     sem_wait(&t->request_received);
 
-    printf("Customer %d [Teller %d]: ends test interaction\n",
-           id, t->id);
+    log_action("Customer", id, "Teller", t->id, "ends test interaction");
 
     sem_post(&t->customer_left);
 
@@ -103,8 +123,7 @@ int main(void) {
         sem_init(&tellers[i].request_received, 0, 0);
         sem_init(&tellers[i].customer_left, 0, 0);
 
-        pthread_create(&teller_threads[i], NULL,
-                       teller, &tellers[i]);
+        pthread_create(&teller_threads[i], NULL, teller, &tellers[i]);
     }
 
     for (int i = 0; i < NUM_TELLERS; i++) {
