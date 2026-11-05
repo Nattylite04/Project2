@@ -34,7 +34,7 @@ void log_action(const char *type, int id, const char *other_type, int other_id, 
     if (other_type != NULL) {
         printf("%s %d [%s %d]: %s\n", type, id, other_type, other_id, message);
     } else {
-        printf("%s %d: %s\n", type, id, message);
+        printf("%s %d []: %s\n", type, id, message);
     }
 
     fflush(stdout);
@@ -46,7 +46,7 @@ void log_action(const char *type, int id, const char *other_type, int other_id, 
 void *teller(void *arg) {
     Teller *t = (Teller *)arg;
 
-    log_action("Teller []:", t->id, NULL, 0, "ready to serve");
+    log_action("Teller", t->id, NULL, 0, "ready to serve");
     sem_post(&bank_ready);
 
     sem_wait(&t->customer_arrived);
