@@ -30,4 +30,8 @@ Goal for this session: Improve the program's output so it follows format require
 
 Plan: I plan to create a reusable function for printing teller and customer actions instead of manually writing separate printf() statements throughout the program. This will make output easier to maintain and keep everything consistent. I will test the program with a couple of tellers and customers to allow easier testing and validation.
 
-## End of session 3 - November 3rd, 2026 - 
+## End of session 3 - November 3rd, 2026 - 5:38PM
+
+Thoughts so far: I ffocued on improving output format. I also added a mutex to prvent multiple threads from printing at the same time, which helps keep output consistent. Using a separate logging function also makes code easier to organize.
+
+Plans for next session: I plan to improve the deposit and withdrawal messages to make it easier to follow each transaction and without interfering with existing synchronization. I will still test with a few tellers and a few customers to make easier for testing. 
