@@ -2,6 +2,9 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <time.h>
+#include <stdint.h>
 
 #define NUM_TELLERS 3
 
@@ -42,6 +45,16 @@ void log_action(const char *type, int id, const char *other_type, int other_id, 
     pthread_mutex_unlock(&print_lock);
 }
 
+void sleep_ms(int milliseconds) {
+    struct timespec ts;
+
+    ts.tv_sec = milliseconds / 1000;
+    ts.tv_nsec = (milliseconds % 1000) * 1000000L;
+
+    nanosleep(&ts, NULL);
+}
+
+
 
 void *teller(void *arg) {
     Teller *t = (Teller *)arg;
@@ -76,6 +89,28 @@ void *customer(void *arg) {
     Customer *c = (Customer *)arg;
     int id = c->id;
     Teller *t = c->assigned_teller;
+
+    unsigned int seed = (unsigned int)time(NULL) ^ (unsigned int)(id * 2654435761U);
+
+    c -> transaction = (int)(rand_r(&seed) % 2);
+    
+    if (c->transaction == 0) {
+        log_action("Customer", id, NULL, 0, "selects deposit transaction");
+    } else {
+        log_action("Customer", id, NULL, 0, "selects withdrawal transaction");
+    }
+    
+    int arrival_delay = (int)(rand_r(&seed) % 101);
+    
+    char message[100];
+
+    snprintf(message, sizeof(message), "waiting %d ms before entering bank", arrival_delay);
+    
+    log_action("Customer", id, NULL, 0, message);
+    
+    sleep_ms(arrival_delay);
+    
+    log_action("\nCustomer", id, NULL, 0, "finished waiting to enter bank");
 
     t->customer_id = id;
 
@@ -130,7 +165,7 @@ int main(void) {
         sem_wait(&bank_ready);
     }
 
-    printf("Bank: all tellers are ready\n");
+    printf("Bank: all tellers are ready\n\n");
     
     for (int i = 0; i < NUM_TELLERS; i++) {
         customers[i].id = i;
