@@ -10,7 +10,7 @@ Thoughts so far: I created initial C program using pthread to launch a teller an
 
 Plans for next session: Implement deposit and withdrawal behavior and introduce the shared safe and manager resources.
 
-## Session 2 - October 4th, 2026 - 1:38PM
+## Session 2 - November 4th, 2026 - 1:38PM
 
 Goal for this session: Begin implementation of the actual customer behavior described in project. I want to develop the customer functionality gradually so I can understand how customer interact with the tellers and how the synchronization will prevent conflicts. 
 
@@ -18,7 +18,7 @@ Plan: Create customer structure to store each customer's unique ID, transaction 
 Modify existing customer thread to use this struct instead of obtaining its ID from teller. 
 Implement random selection between deposit and withdrawal transaction. Add required random arrival delay. Begin designing how customers will enter bank and wait for available teller.
 
-## End of session 2 - November 3rd, 2026 - 5:58PM
+## End of session 2 - November 4th, 2026 - 5:58PM
 
 Thoughts so far: I implemented the Customer structure to store independent customer IDs, transaction information, and a reference to an assigned teller. I modified the customer thread dot use its own Customer struct instead of receiving ID from Teller struct. Output shows correct teller announcements, customer to teller, and transaction request in correct orders. 
 
@@ -30,8 +30,16 @@ Goal for this session: Improve the program's output so it follows format require
 
 Plan: I plan to create a reusable function for printing teller and customer actions instead of manually writing separate printf() statements throughout the program. This will make output easier to maintain and keep everything consistent. I will test the program with a couple of tellers and customers to allow easier testing and validation.
 
-## End of session 3 - November 3rd, 2026 - 5:38PM
+## End of session 3 - November 5rd, 2026 - 5:38PM
 
 Thoughts so far: I ffocued on improving output format. I also added a mutex to prvent multiple threads from printing at the same time, which helps keep output consistent. Using a separate logging function also makes code easier to organize.
 
 Plans for next session: I plan to improve the deposit and withdrawal messages to make it easier to follow each transaction and without interfering with existing synchronization. I will still test with a few tellers and a few customers to make easier for testing. 
+
+## Start of Session 4 - November 8th, 2026 - 2:17PM
+
+Goal for this session: Expand the logging system to provide more detailed information about customer arrival delays and transaction requests.
+
+Plan: I will add function for generating random delays, implement customer arrival delay, print messages before and after delay, and improve deposit and withdrawal messages. Testing.
+
+## End of Session 4 - November 8th, 2026 - 
