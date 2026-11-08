@@ -32,7 +32,7 @@ Plan: I plan to create a reusable function for printing teller and customer acti
 
 ## End of session 3 - November 5rd, 2026 - 5:38PM
 
-Thoughts so far: I ffocued on improving output format. I also added a mutex to prvent multiple threads from printing at the same time, which helps keep output consistent. Using a separate logging function also makes code easier to organize.
+Thoughts so far: I focused on improving output format. I also added a mutex to prvent multiple threads from printing at the same time, which helps keep output consistent. Using a separate logging function also makes code easier to organize.
 
 Plans for next session: I plan to improve the deposit and withdrawal messages to make it easier to follow each transaction and without interfering with existing synchronization. I will still test with a few tellers and a few customers to make easier for testing. 
 
@@ -42,4 +42,8 @@ Goal for this session: Expand the logging system to provide more detailed inform
 
 Plan: I will add function for generating random delays, implement customer arrival delay, print messages before and after delay, and improve deposit and withdrawal messages. Testing.
 
-## End of Session 4 - November 8th, 2026 - 
+## End of Session 4 - November 8th, 2026 - 4:36PM
+
+Thoughts so far: I focused on expanding customer output by adding random transaction selection and arrival delay. Output provides more info about each customer's actions, including selected transaction, wait time, and finishing waiting. I learned how random delays affect execution order of multiple threads.
+
+Plans for next session: I plan to focus on implementing output for shared resources including manager, safe, and bank door. Hopefully I can finish main output requirements before moving on to implementing full customer queue.
