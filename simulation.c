@@ -27,6 +27,9 @@ typedef struct {
 } Customer;
 
 sem_t bank_ready;
+sem_t manager;
+sem_t safe;
+sem_t door;
 
 pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -59,6 +62,8 @@ void sleep_ms(int milliseconds) {
 void *teller(void *arg) {
     Teller *t = (Teller *)arg;
 
+    unsigned int seed = (unsigned int)time(NULL) ^ ((unsigned int)(t->id + 1) * 2654435761U);
+        
     log_action("Teller", t->id, NULL, 0, "ready to serve");
     sem_post(&bank_ready);
 
@@ -75,7 +80,39 @@ void *teller(void *arg) {
     } else {
         log_action("Teller", t->id, "Customer", t->customer_id, "receives withdrawal request");
     }
+    
+    if (t->transaction == 1) {
 
+        log_action("Teller", t->id, NULL, 0, "going to manager");
+    
+        sem_wait(&manager);
+    
+        log_action("Teller", t->id, NULL, 0, "using manager");
+    
+        int delay = 5 + (int)(rand_r(&seed) % 26);
+    
+        sleep_ms(delay);
+    
+        log_action("Teller", t->id, NULL, 0, "done using manager");
+    
+        sem_post(&manager);
+    }
+    
+    log_action("Teller", t->id, NULL, 0, "going to safe");
+
+    sem_wait(&safe);
+    
+    log_action("Teller", t->id, NULL, 0, "using safe");
+    
+    int safe_delay = 10 + (int)(rand_r(&seed) % 41);
+    
+    sleep_ms(safe_delay);
+    
+    log_action("Teller", t->id, NULL, 0, "done using safe");
+    
+    sem_post(&safe);
+    
+    log_action("Teller", t->id, "Customer", t->customer_id, "transaction complete");
     sem_post(&t->request_received);
 
     sem_wait(&t->customer_left);
@@ -111,6 +148,16 @@ void *customer(void *arg) {
     sleep_ms(arrival_delay);
     
     log_action("\nCustomer", id, NULL, 0, "finished waiting to enter bank");
+    
+    log_action("Customer", id, NULL, 0, "going to door to enter bank");
+
+    sem_wait(&door);
+    
+    log_action("Customer", id, NULL, 0, "entering bank through door");
+    
+    sem_post(&door);
+    
+    log_action("Customer", id, NULL, 0, "finished entering through door");
 
     t->customer_id = id;
 
@@ -132,8 +179,18 @@ void *customer(void *arg) {
 
     sem_wait(&t->request_received);
 
-    log_action("Customer", id, "Teller", t->id, "ends test interaction");
-
+    log_action("Customer", id, "Teller", t->id, "transaction completed");
+    
+    log_action("Customer", id, NULL, 0, "going to door to leave bank");
+    
+    sem_wait(&door);
+    
+    log_action("Customer", id, NULL, 0, "leaving bank through door");
+    
+    sem_post(&door);
+    
+    log_action("Customer", id, NULL, 0, "finished leaving through door");
+    
     sem_post(&t->customer_left);
 
     return NULL;
@@ -146,6 +203,10 @@ int main(void) {
     Teller tellers[NUM_TELLERS];
     Customer customers[NUM_TELLERS];
     sem_init(&bank_ready, 0, 0);
+    sem_init(&manager, 0, 1);
+    sem_init(&safe, 0, 2);
+    sem_init(&door, 0, 2);
+    
 
     for (int i = 0; i < NUM_TELLERS; i++) {
         tellers[i].id = i;
@@ -189,6 +250,9 @@ int main(void) {
     }
 
     sem_destroy(&bank_ready);
+    sem_destroy(&manager);
+    sem_destroy(&safe);
+    sem_destroy(&door);
 
     printf("Bank: test completed\n");
 
