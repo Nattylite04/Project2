@@ -47,8 +47,6 @@ Plan: I will add function for generating random delays, implement customer arriv
 Thoughts so far: I focused on expanding customer output by adding random transaction selection and arrival delay. Output provides more info about each customer's actions, including selected transaction, wait time, and finishing waiting. I learned how random delays affect execution order of multiple threads.
 
 Plans for next session: I plan to focus on implementing output for shared resources including manager, safe, and bank door. Hopefully I can finish main output requirements before moving on to implementing full customer queue.
-<<<<<<< HEAD
-=======
 
 # Session 5 - November 9th, 2026 - 2:10PM
 Goal for this session: Program does not yet simulate access to bank shared resources. Add required manager, safe, and door functionality while continuing to improve output format.
@@ -56,5 +54,6 @@ Goal for this session: Program does not yet simulate access to bank shared resou
 Plan: Initialize semaphores to control access to manager, safe and door. Implement manager interaction for withdrawal transaction with delay, Implement safe access for both deposits and withdrawals including delay, add all output messages, implement door synch for customers. Test.
 
 # End of session 5 - November 9th, 2026
+Thoughts so far: Program is becoming more complete, but it still uses 3 temp customers with fixed tellers. The next major challenge will be allowing multiple customers to share 3 tellers without causing synchronization problems.
 
->>>>>>> 3ddbe7b6854ce23dabe626b3300c2c039dffc7e5
+Plan for next session: Implement customer waiting line and teller assignment system. Hopefully increase number of customer threads for testing.
