@@ -58,4 +58,9 @@ Thoughts so far: Program is becoming more complete, but it still uses 3 temp cus
 
 Plan for next session: Implement customer waiting line and teller assignment system. Hopefully increase number of customer threads for testing.
 
-## Session 6 - November 10th, 2026 - 
+## Session 6 - November 11th, 2026 - 6:51PM
+Goal for this session: Program does not yet meet the final requirement of serving 50 customers. Goal for this session is the begin implementing a shared teller assignment system that allows customers to wait until a teller becomes available.
+
+Plan: Create a shared queue, use mutex to prevent mutliple customer threads from modifying queue simultaneously, use semaphores to make customers wait, and modify teller function so that tellers can serve multiple customers.
+
+## End of Session 6 - November 11th, 2026 -
