@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 #define NUM_TELLERS 3
-#define NUM_CUSTOMERS 5
+#define NUM_CUSTOMERS 50
 
 typedef struct {
     int id;
@@ -126,6 +126,7 @@ void *teller(void *arg) {
             break;
         }
         
+        int customer_id = t->customer_id;
         log_action("Teller", t->id, "Customer", t->customer_id, "serving a customer");
         
         log_action("Teller", t->id, "Customer", t->customer_id, "asks for transaction");
@@ -135,7 +136,7 @@ void *teller(void *arg) {
         sem_wait(&t->transaction_given);
     
         if (t->transaction == 0) {
-            log_action("Teller", t->id, "Customer", t->customer_id, "receives deposit request");
+            log_action("Teller", t->id, "Customer", t->customer_id, "handling deposit transaction");
         } else {
             log_action("Teller", t->id, "Customer", t->customer_id, "handling withdrawal transaction");
         }
@@ -157,7 +158,7 @@ void *teller(void *arg) {
             sem_post(&manager);
         }
         
-        log_action("Teller", t->id, NULL, 0, "going to safe");
+        log_action("Teller", t->id, "Customer", t->customer_id, "going to safe");
     
         sem_wait(&safe);
         
@@ -178,12 +179,14 @@ void *teller(void *arg) {
             log_action("Teller", t->id, "Customer", t->customer_id, "finishes withdrawal transaction");
         }
         
+        log_action("Teller", t->id, "Customer", customer_id, "wait for customer to leave");
         sem_post(&t->request_received);
     
         sem_wait(&t->customer_left);
         
-        log_action("Teller", t->id, "Customer", t->customer_id, "customer left teller");
-    }   
+        log_action("Teller", t->id, NULL, 0, "ready to serve");
+    } 
+    
     log_action("Teller", t->id, NULL, 0, "leaving for the day");
     return NULL;
 }
@@ -199,17 +202,17 @@ void *customer(void *arg) {
     if (c->transaction == 0) {
         log_action("Customer", id, NULL, 0, "wants to perform a deposit transaction");
     } else {
-        log_action("Customer", id, NULL, 0, "selects withdrawal transaction");
+        log_action("Customer", id, NULL, 0, "wants to perform a withdrawal transaction");
     }
     
     int arrival_delay = (int)(rand_r(&seed) % 101);
     
     char message[100];
-
+/*
     snprintf(message, sizeof(message), "waiting %d ms before entering bank", arrival_delay);
     
     log_action("Customer", id, NULL, 0, message);
-    
+*/
     sleep_ms(arrival_delay);
     
     log_action("Customer", id, NULL, 0, "finished waiting to enter bank");
@@ -218,12 +221,10 @@ void *customer(void *arg) {
 
     sem_wait(&door);
     
-    log_action("Customer", id, NULL, 0, "entering bank through door");
+    log_action("Customer", id, NULL, 0, "entering bank");
     
     sem_post(&door);
     
-    log_action("Customer", id, NULL, 0, "finished entering through door");
-
     log_action("Customer", id, NULL, 0, "getting in line");
     
     log_action("Customer", id, NULL, 0, "selecting a teller");
@@ -233,10 +234,10 @@ void *customer(void *arg) {
     Teller *t = &tellers[teller_id];
     
     c->assigned_teller = t;
-
-    log_action("Customer", id, "Teller", t->id, "selects teller");
     
     t->customer_id = id;
+    
+    log_action("Customer", id, "Teller", t->id, "selects teller");
 
     log_action("Customer", id, "Teller", t->id, "introduces itself");
 
@@ -247,7 +248,7 @@ void *customer(void *arg) {
     t->transaction = c->transaction;
 
     if (t->transaction == 0) {
-        log_action("Customer", id, "Teller", t->id, "requests deposit");
+        log_action("Customer", id, "Teller", t->id, "asks for a deposit transaction");
     } else {
         log_action("Customer", id, "Teller", t->id, "asks for withdrawal transaction");
     }
@@ -258,20 +259,16 @@ void *customer(void *arg) {
 
     log_action("Customer", id, "Teller", t->id, "leaves teller");
     
-    log_action("Customer", id, NULL, 0, "going to door to leave bank");
+    log_action("Customer", id, NULL, 0, "goes to door");
     
     sem_wait(&door);
     
-    log_action("Customer", id, NULL, 0, "leaving bank through door");
+    log_action("Customer", id, NULL, 0, "leaves the bank");
     
     sem_post(&door);
     
-    log_action("Customer", id, NULL, 0, "finished leaving through door");
-    
     sem_post(&t->customer_left);
     
-    log_action("Customer", id, "Teller", t->id, "wait for customer to leave");
-
     return NULL;
 }
 
@@ -307,7 +304,7 @@ int main(void) {
         sem_wait(&bank_ready);
     }
 
-    printf("Bank: all tellers are ready\n\n");
+    //printf("Bank: all tellers are ready\n\n");
     
     for (int i = 0; i < NUM_CUSTOMERS; i++) {
         customers[i].id = i;
@@ -352,7 +349,7 @@ int main(void) {
     pthread_mutex_destroy(&closing_lock);
     pthread_mutex_destroy(&print_lock);
 
-    printf("Bank: test completed\n");
+    printf("The bank closes for the day.\n");
 
     return 0;
 }
