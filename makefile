@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -std=gnu11 -Wall -Wextra -pthread
 TARGET = project2
-SRC = main.c
+SRC = simulation.c
 
 .PHONY: compile run test
 
