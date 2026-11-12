@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #define NUM_TELLERS 3
+#define NUM_CUSTOMERS 5
 
 typedef struct {
     int id;
@@ -20,6 +21,8 @@ typedef struct {
     sem_t customer_left;
 } Teller;
 
+Teller tellers[NUM_TELLERS];
+
 typedef struct {
     int id;
     int transaction;
@@ -31,7 +34,19 @@ sem_t manager;
 sem_t safe;
 sem_t door;
 
+int available_tellers[NUM_TELLERS];
+
+int queue_front = 0;
+int queue_rear = 0;
+
 pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t closing_lock = PTHREAD_MUTEX_INITIALIZER;
+sem_t teller_available;
+
+int bank_closing = 0;
+
+
 
 void log_action(const char *type, int id, const char *other_type, int other_id, const char *message) {
 
@@ -57,7 +72,39 @@ void sleep_ms(int milliseconds) {
     nanosleep(&ts, NULL);
 }
 
+void add_available_teller(int id) {
+    pthread_mutex_lock(&queue_lock);
+    
+    available_tellers[queue_rear] = id;
+    queue_rear = (queue_rear + 1) % NUM_TELLERS;
+    
+    pthread_mutex_unlock(&queue_lock);
+    
+    sem_post(&teller_available);
+}
 
+int get_available_teller(void) {
+    sem_wait(&teller_available);
+    
+    pthread_mutex_lock(&queue_lock);
+    
+    int id = available_tellers[queue_front];
+    queue_front = (queue_front + 1) % NUM_TELLERS;
+    
+    pthread_mutex_unlock(&queue_lock);
+    
+    return id;
+}
+
+int is_bank_closing(void) {
+    pthread_mutex_lock(&closing_lock);
+    
+    int closing = bank_closing;
+    
+    pthread_mutex_unlock(&closing_lock);
+    
+    return closing;
+}
 
 void *teller(void *arg) {
     Teller *t = (Teller *)arg;
@@ -65,74 +112,92 @@ void *teller(void *arg) {
     unsigned int seed = (unsigned int)time(NULL) ^ ((unsigned int)(t->id + 1) * 2654435761U);
         
     log_action("Teller", t->id, NULL, 0, "ready to serve");
+    
     sem_post(&bank_ready);
 
-    sem_wait(&t->customer_arrived);
-
-    log_action("Teller", t->id, "Customer", t->customer_id, "asks for transaction");
-
-    sem_post(&t->ask_transaction);
-
-    sem_wait(&t->transaction_given);
-
-    if (t->transaction == 0) {
-        log_action("Teller", t->id, "Customer", t->customer_id, "receives deposit request");
-    } else {
-        log_action("Teller", t->id, "Customer", t->customer_id, "receives withdrawal request");
-    }
+    while(1) {
+        log_action("Teller", t->id, NULL, 0, "waiting for a customer");
+        
+        add_available_teller(t->id);
     
-    if (t->transaction == 1) {
-
-        log_action("Teller", t->id, NULL, 0, "going to manager");
+        sem_wait(&t->customer_arrived);
+        
+        if(is_bank_closing()) {
+            break;
+        }
+        
+        log_action("Teller", t->id, "Customer", t->customer_id, "serving a customer");
+        
+        log_action("Teller", t->id, "Customer", t->customer_id, "asks for transaction");
     
-        sem_wait(&manager);
+        sem_post(&t->ask_transaction);
     
-        log_action("Teller", t->id, NULL, 0, "using manager");
+        sem_wait(&t->transaction_given);
     
-        int delay = 5 + (int)(rand_r(&seed) % 26);
+        if (t->transaction == 0) {
+            log_action("Teller", t->id, "Customer", t->customer_id, "receives deposit request");
+        } else {
+            log_action("Teller", t->id, "Customer", t->customer_id, "handling withdrawal transaction");
+        }
+        
+        if (t->transaction == 1) {
     
-        sleep_ms(delay);
+            log_action("Teller", t->id, NULL, 0, "going to the manager");
+        
+            sem_wait(&manager);
+        
+            log_action("Teller", t->id, NULL, 0, "getting manager's permission");
+        
+            int delay = 5 + (int)(rand_r(&seed) % 26);
+        
+            sleep_ms(delay);
+        
+            log_action("Teller", t->id, NULL, 0, "got manager's permission");
+        
+            sem_post(&manager);
+        }
+        
+        log_action("Teller", t->id, NULL, 0, "going to safe");
     
-        log_action("Teller", t->id, NULL, 0, "done using manager");
+        sem_wait(&safe);
+        
+        log_action("Teller", t->id, NULL, 0, "enter safe");
+        
+        int safe_delay = 10 + (int)(rand_r(&seed) % 41);
+        
+        sleep_ms(safe_delay);
+        
+        log_action("Teller", t->id, NULL, 0, "leaving safe");
+        
+        sem_post(&safe);
+        
+        if(t->transaction == 0) {
+            log_action("Teller", t->id, "Customer", t->customer_id, "finishes deposit transaction");
+        }
+        else {
+            log_action("Teller", t->id, "Customer", t->customer_id, "finishes withdrawal transaction");
+        }
+        
+        sem_post(&t->request_received);
     
-        sem_post(&manager);
-    }
-    
-    log_action("Teller", t->id, NULL, 0, "going to safe");
-
-    sem_wait(&safe);
-    
-    log_action("Teller", t->id, NULL, 0, "using safe");
-    
-    int safe_delay = 10 + (int)(rand_r(&seed) % 41);
-    
-    sleep_ms(safe_delay);
-    
-    log_action("Teller", t->id, NULL, 0, "done using safe");
-    
-    sem_post(&safe);
-    
-    log_action("Teller", t->id, "Customer", t->customer_id, "transaction complete");
-    sem_post(&t->request_received);
-
-    sem_wait(&t->customer_left);
-
-    log_action("Teller", t->id, "Customer", t->customer_id, "customer left teller");
-
+        sem_wait(&t->customer_left);
+        
+        log_action("Teller", t->id, "Customer", t->customer_id, "customer left teller");
+    }   
+    log_action("Teller", t->id, NULL, 0, "leaving for the day");
     return NULL;
 }
 
 void *customer(void *arg) {
     Customer *c = (Customer *)arg;
     int id = c->id;
-    Teller *t = c->assigned_teller;
 
     unsigned int seed = (unsigned int)time(NULL) ^ (unsigned int)(id * 2654435761U);
 
     c -> transaction = (int)(rand_r(&seed) % 2);
     
     if (c->transaction == 0) {
-        log_action("Customer", id, NULL, 0, "selects deposit transaction");
+        log_action("Customer", id, NULL, 0, "wants to perform a deposit transaction");
     } else {
         log_action("Customer", id, NULL, 0, "selects withdrawal transaction");
     }
@@ -147,9 +212,9 @@ void *customer(void *arg) {
     
     sleep_ms(arrival_delay);
     
-    log_action("\nCustomer", id, NULL, 0, "finished waiting to enter bank");
+    log_action("Customer", id, NULL, 0, "finished waiting to enter bank");
     
-    log_action("Customer", id, NULL, 0, "going to door to enter bank");
+    log_action("Customer", id, NULL, 0, "going to bank");
 
     sem_wait(&door);
     
@@ -159,6 +224,18 @@ void *customer(void *arg) {
     
     log_action("Customer", id, NULL, 0, "finished entering through door");
 
+    log_action("Customer", id, NULL, 0, "getting in line");
+    
+    log_action("Customer", id, NULL, 0, "selecting a teller");
+    
+    int teller_id = get_available_teller();
+    
+    Teller *t = &tellers[teller_id];
+    
+    c->assigned_teller = t;
+
+    log_action("Customer", id, "Teller", t->id, "selects teller");
+    
     t->customer_id = id;
 
     log_action("Customer", id, "Teller", t->id, "introduces itself");
@@ -167,19 +244,19 @@ void *customer(void *arg) {
 
     sem_wait(&t->ask_transaction);
 
-    t->transaction = id % 2;
+    t->transaction = c->transaction;
 
     if (t->transaction == 0) {
         log_action("Customer", id, "Teller", t->id, "requests deposit");
     } else {
-        log_action("Customer", id, "Teller", t->id, "requests withdrawal");
+        log_action("Customer", id, "Teller", t->id, "asks for withdrawal transaction");
     }
 
     sem_post(&t->transaction_given);
 
     sem_wait(&t->request_received);
 
-    log_action("Customer", id, "Teller", t->id, "transaction completed");
+    log_action("Customer", id, "Teller", t->id, "leaves teller");
     
     log_action("Customer", id, NULL, 0, "going to door to leave bank");
     
@@ -192,20 +269,22 @@ void *customer(void *arg) {
     log_action("Customer", id, NULL, 0, "finished leaving through door");
     
     sem_post(&t->customer_left);
+    
+    log_action("Customer", id, "Teller", t->id, "wait for customer to leave");
 
     return NULL;
 }
 
 int main(void) {
     pthread_t teller_threads[NUM_TELLERS];
-    pthread_t customer_threads[NUM_TELLERS];
+    pthread_t customer_threads[NUM_CUSTOMERS];
 
-    Teller tellers[NUM_TELLERS];
-    Customer customers[NUM_TELLERS];
+    Customer customers[NUM_CUSTOMERS];
     sem_init(&bank_ready, 0, 0);
     sem_init(&manager, 0, 1);
     sem_init(&safe, 0, 2);
     sem_init(&door, 0, 2);
+    sem_init(&teller_available, 0, 0);
     
 
     for (int i = 0; i < NUM_TELLERS; i++) {
@@ -218,7 +297,9 @@ int main(void) {
         sem_init(&tellers[i].transaction_given, 0, 0);
         sem_init(&tellers[i].request_received, 0, 0);
         sem_init(&tellers[i].customer_left, 0, 0);
-
+    }
+    
+    for(int i = 0; i < NUM_TELLERS; i++) {
         pthread_create(&teller_threads[i], NULL, teller, &tellers[i]);
     }
 
@@ -228,16 +309,27 @@ int main(void) {
 
     printf("Bank: all tellers are ready\n\n");
     
-    for (int i = 0; i < NUM_TELLERS; i++) {
+    for (int i = 0; i < NUM_CUSTOMERS; i++) {
         customers[i].id = i;
         customers[i].transaction = -1;
-        customers[i].assigned_teller = &tellers[i];
+        customers[i].assigned_teller = NULL;
         
         pthread_create(&customer_threads[i], NULL, customer, &customers[i]);
     }
 
-    for (int i = 0; i < NUM_TELLERS; i++) {
+    for (int i = 0; i < NUM_CUSTOMERS; i++) {
         pthread_join(customer_threads[i], NULL);
+    }
+
+    pthread_mutex_lock(&closing_lock);
+    bank_closing = 1;
+    pthread_mutex_unlock(&closing_lock);
+
+    for (int i = 0; i < NUM_TELLERS; i++) {
+        sem_post(&tellers[i].customer_arrived);
+    }
+    
+    for (int i = 0; i < NUM_TELLERS; i++) {
         pthread_join(teller_threads[i], NULL);
     }
 
@@ -249,10 +341,16 @@ int main(void) {
         sem_destroy(&tellers[i].customer_left);
     }
 
+    
     sem_destroy(&bank_ready);
     sem_destroy(&manager);
     sem_destroy(&safe);
     sem_destroy(&door);
+    sem_destroy(&teller_available);
+    
+    pthread_mutex_destroy(&queue_lock);
+    pthread_mutex_destroy(&closing_lock);
+    pthread_mutex_destroy(&print_lock);
 
     printf("Bank: test completed\n");
 
