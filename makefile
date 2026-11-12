@@ -3,22 +3,19 @@ CFLAGS = -std=gnu11 -Wall -Wextra -pthread
 TARGET = project2
 SRC = main.c
 
-.PHONY: all run clean test
+.PHONY: compile run test
 
-all: $(TARGET)
+compile: $(TARGET)
 
 $(TARGET): $(SRC)
 	$(CC) $(CFLAGS) $(SRC) -o $(TARGET)
 
-run: $(TARGET)
+run: compile
 	./$(TARGET)
 
-test: $(TARGET)
-	@echo "Running bank simulation (10-second timeout)..."
+test: compile
+	@echo "Testing bank simulation..."
 	timeout 10 ./$(TARGET) > output.txt
-	@echo "Customers who exited:"
-	@grep -c "finished leaving through door" output.txt || true
-	@echo "Output saved to output.txt"
-
-clean:
-	rm -f $(TARGET) output.txt
+	@echo "Customers who finished leaving the bank:"
+	@grep -c "finished leaving through door" output.txt
+	@echo "Full output saved to output.txt"
