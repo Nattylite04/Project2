@@ -208,11 +208,11 @@ void *customer(void *arg) {
     int arrival_delay = (int)(rand_r(&seed) % 101);
     
     char message[100];
-/*
+
     snprintf(message, sizeof(message), "waiting %d ms before entering bank", arrival_delay);
     
     log_action("Customer", id, NULL, 0, message);
-*/
+
     sleep_ms(arrival_delay);
     
     log_action("Customer", id, NULL, 0, "finished waiting to enter bank");
@@ -304,7 +304,7 @@ int main(void) {
         sem_wait(&bank_ready);
     }
 
-    //printf("Bank: all tellers are ready\n\n");
+    printf("Bank: all tellers are ready\n");
     
     for (int i = 0; i < NUM_CUSTOMERS; i++) {
         customers[i].id = i;
