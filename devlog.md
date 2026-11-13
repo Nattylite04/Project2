@@ -63,4 +63,5 @@ Goal for this session: Program does not yet meet the final requirement of servin
 
 Plan: Create a shared queue, use mutex to prevent mutliple customer threads from modifying queue simultaneously, use semaphores to make customers wait, and modify teller function so that tellers can serve multiple customers.
 
-## End of Session 6 - November 11th, 2026 -
+## Session 7 - November 12th, 2026 - 12:24PM
+Finalization: In the previous session, I implemented a shared queue and slowly tested the queue, manager, safe, door. I have fixed all the bugs, deadlocks, etc. I am able to serve 50 customers using 3 tellers in synchronization. Output validation has passed. Project is reaching completion.
